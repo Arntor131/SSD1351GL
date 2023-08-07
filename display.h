@@ -5,6 +5,7 @@
  	 * Created: 7 july 2023
  *******************************************/
 
+/*DisplayGL uses STM32F103device library: https://github.com/AMOGUS1939/STM32f103device.git */
 
 #ifndef DISPLAY_H
 #define DISPLAY_H
