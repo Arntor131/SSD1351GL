@@ -109,6 +109,8 @@ void Display_setXbmMode(struct DisplayGL *display, DisplayXbmMode_e mode);
 
 void Display_print(struct DisplayGL *display, const char *format, ...);
 
+
+//delete this shit
 #if defined(DISPLAY_USE_SW_SPI)
 void swSpiWrite(struct DisplayGL * display, uint8_t data);
 #endif
