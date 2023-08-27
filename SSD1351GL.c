@@ -7,11 +7,11 @@ static void Display_setDrawZone( struct SSD1351GL * display, uint8_t x0, uint8_t
 
 /*
  *	@brief 	Initialize display
- *			Initialization is carried out in 4 stages:
- * 			1) GPIO initialization
- * 			2) SPI/I2C initialization,
- * 			3) Send a packet of control bytes for initial display setup.
- * 			4) Set display in default mode
+ *		Initialization is carried out in 4 stages:
+ * 		1) GPIO initialization
+ * 		2) SPI/I2C initialization,
+ * 		3) Send a packet of control bytes for initial display setup.
+ * 		4) Set display in default mode
  * 
  *	@param	Ptr to the SSD1351 struct
  * 
@@ -203,7 +203,7 @@ void Display_data( struct SSD1351GL * display, uint8_t data )
 
 /*
  * 	@brief 	Adjust the output zone
- *			Move the display RAM pointer to the beginning of the rectangle 
+ *		Move the display RAM pointer to the beginning of the rectangle 
  * 
  * 	@param	Ptr to the SSD1351 struct
  *  @param	rectangle leftmost x
@@ -238,7 +238,7 @@ void Display_setDrawZone( struct SSD1351GL * display, uint8_t x0, uint8_t y0, ui
 
 /*
  *	@brief	Clear display
- *			The display is filled with the color specified in the SSD1351GL->currentBackColor (black by default)
+ *		The display is filled with the color specified in the SSD1351GL->currentBackColor (black by default)
  * 
  *	@note	frequent use slows down the display greatly
  * 
@@ -318,7 +318,7 @@ void Display_setBackColor(struct SSD1351GL *display, uint16_t color)
 
 /*
  *	@brief	Set display xbm mode.
- *			If mode != 0, then the empty XBM sections will overlap the previously displayed pixel
+ *		If mode != 0, then the empty XBM sections will overlap the previously displayed pixel
  * 
  *	@param	Ptr to the SSD1351 struct
  *	@param	New XBM mode
@@ -401,8 +401,8 @@ void Display_drawAsciiChar(struct SSD1351GL *display, uint8_t x, uint8_t y, uint
 
 /*
  *	@brief	Set display cursor.
- *			When calling the Display_drawAsciiChar() function, 
- *			the character will be displayed at the specified coordinates
+ *		When calling the Display_drawAsciiChar() function, 
+ *		the character will be displayed at the specified coordinates
  * 
  *	@param	Ptr to the SSD1351 struct
  *	@param	Cursor x coordinate
@@ -515,10 +515,10 @@ void Display_printf(struct SSD1351GL *display, const char *format, ...)
  *	@brief	Draw a frame with the specified size at the specified coordinates
  * 
  *	@note	The border color is set by the currentDrawColor value, 
- *			call the Display_setDrawColor function to change it
+ *		call the Display_setDrawColor function to change it
  * 
- *			If the value of xbmDrawMode > 0, 
- *			then the frame will completely block the previously drawn image
+ *		If the value of xbmDrawMode > 0, 
+ *		then the frame will completely block the previously drawn image
  * 
  *	@param	Ptr to the SSD1351 struct
  *	@param	Frame top left corner x coordinate
@@ -564,7 +564,7 @@ void Display_drawFrame(struct SSD1351GL *display, uint8_t x, uint8_t y, uint8_t 
  *	@brief	Draw a rectangle of the specified dimensions at the specified coordinates
  *	
  *	@note	The box color is set by the currentDrawColor value, 
- *			call the Display_setDrawColor function to change it
+ *		call the Display_setDrawColor function to change it
  * 
   *	@param	Ptr to the SSD1351 struct
  *	@param	Box top left corner x coordinate
@@ -594,7 +594,7 @@ void Display_drawBox(struct SSD1351GL *display, uint8_t x, uint8_t y, uint8_t wi
  *	@brief	Draw a monochrome bitmap (XBM)
  * 
  *	@note	The XBM color is set by the currentDrawColor value, 
- *			call the Display_setDrawColor function to change it
+ *		call the Display_setDrawColor function to change it
  * 
  *	@param	Ptr to the SSD1351 struct
  *	@param	XBM top left corner x coordinate

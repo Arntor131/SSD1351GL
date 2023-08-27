@@ -26,10 +26,10 @@ extern "C" {
 #define COLOR_RED		(uint16_t)0xF800
 #define COLOR_GREEN		(uint16_t)0x07E0
 #define COLOR_BLUE		(uint16_t)0x001F
-#define COLOR_YELLOW	(uint16_t)0xFFE0
+#define COLOR_YELLOW		(uint16_t)0xFFE0
 #define COLOR_CYAN		(uint16_t)0x07FF
-#define COLOR_MAGENTA	(uint16_t)0xF81F
-#define COLOR_BROWN 	(uint16_t)0x9260
+#define COLOR_MAGENTA		(uint16_t)0xF81F
+#define COLOR_BROWN 		(uint16_t)0x9260
 #define COLOR_WHITE		(uint16_t)0xFFFF
 
 /*
@@ -37,9 +37,9 @@ extern "C" {
  */
 struct SSD1351GL
 {
-	uint8_t csPin; 	/*Chip Select pin. Set low to communicate with display. Not used in I2C mode*/
-	uint8_t dcPin; 	/*Data/Command select pin. Set low to write command, high to write data*/
-	uint8_t resPin;	/*Reset pin. Set low to reset display*/
+	uint8_t csPin; 		/*Chip Select pin. Set low to communicate with display. Not used in I2C mode*/
+	uint8_t dcPin; 		/*Data/Command select pin. Set low to write command, high to write data*/
+	uint8_t resPin;		/*Reset pin. Set low to reset display*/
 
 	uint8_t dataPin; 	/*Data pin. Used as MOSI in SPI mode, used as SDA in I2C mode*/
 	uint8_t clkPin;		/*Clock pin. Used as SCK in SPI mode, used as SCL in I2C mode*/
@@ -92,10 +92,6 @@ void Display_drawBox(struct SSD1351GL *display, uint8_t x, uint8_t y, uint8_t wi
 void Display_drawXBM(struct SSD1351GL *display, uint8_t xbmStartx, uint8_t xbmStarty, uint8_t xbmWidth, uint8_t xbmHeight, uint8_t xbm[]);
 
 void Display_printf(struct SSD1351GL *display, const char *format, ...); //TODO
-
-#if defined(DISPLAY_USE_SW_SPI)
-void swSpiWrite(struct SSD1351GL * display, uint8_t data);
-#endif
 
 #if defined(__cplusplus)
 }
