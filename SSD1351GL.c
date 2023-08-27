@@ -515,10 +515,10 @@ void Display_printf(struct SSD1351GL *display, const char *format, ...)
  *	@brief	Draw a frame with the specified size at the specified coordinates
  * 
  *	@note	The border color is set by the currentDrawColor value, 
- *			call the Display_setDrawColor function to change it
+ *		call the Display_setDrawColor function to change it
  * 
- *			If the value of xbmDrawMode > 0, 
- *			then the frame will completely block the previously drawn image
+ *		If the value of xbmDrawMode > 0, 
+ *		then the frame will completely block the previously drawn image
  * 
  *	@param	Ptr to the SSD1351 struct
  *	@param	Frame top left corner x coordinate
