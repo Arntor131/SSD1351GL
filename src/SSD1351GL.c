@@ -1,9 +1,10 @@
 #include "SSD1351GL.h"
 #include "stdFont_5x8.h"
+#include <math.h>
 
-static void Display_command( struct SSD1351GL * display, uint8_t command );
-static void Display_data( struct SSD1351GL *display, uint8_t data );
-static void Display_setDrawZone( struct SSD1351GL * display, uint8_t x0, uint8_t y0, uint8_t width, uint8_t height );
+static void Display_Command( struct SSD1351GL * display, uint8_t command );
+static void Display_Data( struct SSD1351GL *display, uint8_t data );
+static void Display_SetDrawZone( struct SSD1351GL * display, uint8_t x0, uint8_t y0, uint8_t width, uint8_t height );
 
 /*
  *	@brief 	Initialize display
@@ -17,132 +18,140 @@ static void Display_setDrawZone( struct SSD1351GL * display, uint8_t x0, uint8_t
  * 
  *	@retval none
  */
-void Display_init( struct SSD1351GL * display )
+void Display_Init( struct SSD1351GL * display )
 {
 	uint16_t i;
 
-	GPIO_clockInit();	/* Enable GPIO */
+	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOBEN | RCC_AHB1ENR_GPIOCEN; /* Enable GPIO */
 
 #if defined(DISPLAY_USE_HW_4SPI)
 
-	GPIO_configPin(display->clkPinPort, display->clkPin, GPIO_OUTPUT_AF_PUSH_PULL);		/* Set CLK as alternate output */
-	GPIO_configPin(display->dataPinPort, display->dataPin, GPIO_OUTPUT_AF_PUSH_PULL);	/* Set DATA as alternate output */
+	GPIO_InitPin(display->clkPinPort, display->clkPin, GPIO_MODE_ALT); /* Set CLK as alternate output */
+	GPIO_InitPin(display->dataPinPort, display->dataPin, GPIO_MODE_ALT); /* Set DATA as alternate output */
 
-	SPI_clockEn();	/* Enable SPI */
+	GPIO_SetAltMode(display->clkPinPort, display->clkPin, 0x05);
+	GPIO_SetAltMode(display->dataPinPort, display->dataPin, 0x05);
 
-	SPI_masterInit(display->spi);	/* Init SPI as master */
+	RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;	/* Enable SPI */
+
+	display->spi->CR1 |= SPI_CR1_MSTR | SPI_CR1_SSI | SPI_CR1_SSM | SPI_CR1_SPE; /* Init SPI as master */
 
 #elif defined(DISPLAY_USE_SW_SPI)
 
-	GPIO_configPin(display->clkPinPort, display->clkPin, GPIO_OUTPUT_PUSH_PULL);	/* Set CLK as output */
-	GPIO_configPin(display->dataPinPort, display->dataPin, GPIO_OUTPUT_PUSH_PULL);	/* Set DATA as output */
+	//GPIO_configPin(display->clkPinPort, display->clkPin, GPIO_OUTPUT_PUSH_PULL);	/* Set CLK as output */
+	//GPIO_configPin(display->dataPinPort, display->dataPin, GPIO_OUTPUT_PUSH_PULL);	/* Set DATA as output */
 
 #endif
 
-	GPIO_configPin(display->csPinPort, display->csPin, GPIO_OUTPUT_PUSH_PULL);	/* Set CS, DC, RES as output */
-	GPIO_configPin(display->dcPinPort, display->dcPin, GPIO_OUTPUT_PUSH_PULL);
-	GPIO_configPin(display->resPinPort, display->resPin, GPIO_OUTPUT_PUSH_PULL);
+	GPIO_InitPin(display->csPinPort, display->csPin, GPIO_MODE_OUTPUT | GPIO_OSPEED_50MHZ);
+	GPIO_InitPin(display->dcPinPort, display->dcPin, GPIO_MODE_OUTPUT | GPIO_OSPEED_50MHZ);
+	GPIO_InitPin(display->resPinPort, display->resPin, GPIO_MODE_OUTPUT | GPIO_OSPEED_50MHZ);
 
-	GPIO_setPin(display->csPinPort, display->csPin, 1);		/* Unselect display (CS = 1) */
-	GPIO_setPin(display->resPinPort, display->resPin, 0);	/* Reset display (RES = 0) */
+	//GPIO_configPin(display->csPinPort, display->csPin, GPIO_OUTPUT_PUSH_PULL);	/* Set CS, DC, RES as output */
+	//GPIO_configPin(display->dcPinPort, display->dcPin, GPIO_OUTPUT_PUSH_PULL);
+	//GPIO_configPin(display->resPinPort, display->resPin, GPIO_OUTPUT_PUSH_PULL);
+
+	GPIO_SetPin(display->csPinPort, display->csPin, 1);		/* Unselect display (CS = 1) */
+	GPIO_SetPin(display->resPinPort, display->resPin, 0);	/* Reset display (RES = 0) */
 
 	for(i = 0; i < 1024; i++); 	/* Delay */
+	_delay_ms(1);
 
-	GPIO_setPin(display->resPinPort, display->resPin, 1);	/* End reset (RES = 1) */
+	GPIO_SetPin(display->resPinPort, display->resPin, 1);	/* End reset (RES = 1) */
 
 	/* Send control bytes to the display */
 
 	/* Set command lock */
-	Display_command(display, 0xFD);
-	Display_data(display, 0x12);
+	Display_Command(display, 0xFD);
+	Display_Data(display, 0x12);
 
 	/* Set command lock */
-	Display_command(display, 0xFD);
-	Display_data(display, 0xB1);
+	Display_Command(display, 0xFD);
+	Display_Data(display, 0xB1);
 
 	/* Turn display off */
-	Display_command(display, 0xAE);
+	Display_Command(display, 0xAE);
 
 	/* Set display clock div */
-	Display_command(display, 0xB3);
+	Display_Command(display, 0xB3);
 
 	/* 7:4 = oscillator frequency, 3:0 = CLK div ratio (A[3:0]+1 = 1..16) */
-	Display_command(display, 0xF1);
+	Display_Command(display, 0xF1);
 
 	/* Set display mux ratio */
-	Display_command(display, 0xCA);
-	Display_data(display, 0x7f);
+	Display_Command(display, 0xCA);
+	Display_Data(display, 0x7f);
 
 	/* Set display remap */
-	Display_command(display, 0xA0);
-	Display_data(display, 0x74);
+	Display_Command(display, 0xA0);
+	Display_Data(display, 0x74);
 
 	/* Set display column */
-	Display_command(display, 0x15);
-	Display_data(display, 0x00);
-	Display_data(display, 0x7F);
+	Display_Command(display, 0x15);
+	Display_Data(display, 0x00);
+	Display_Data(display, 0x7F);
 
 	/* Set display row*/
-	Display_command(display, 0x75);
-	Display_data(display, 0x00);
-	Display_data(display, 0x7F);
+	Display_Command(display, 0x75);
+	Display_Data(display, 0x00);
+	Display_Data(display, 0x7F);
 
 	/* Set display start line */
-	Display_command(display, 0xA1);
-	Display_data(display, 0x00);
+	Display_Command(display, 0xA1);
+	Display_Data(display, 0x00);
 
 	/* Set display offset */
-	Display_command(display, 0xA2);
-	Display_data(display, 0x00);
+	Display_Command(display, 0xA2);
+	Display_Data(display, 0x00);
 
 	/* Set display controller GPIO */
-	Display_command(display, 0xB5);
-	Display_data(display, 0x00);
+	Display_Command(display, 0xB5);
+	Display_Data(display, 0x00);
 
 	/* Display function select */
-	Display_command(display, 0xAB);
-	Display_data(display, 0x01);
+	Display_Command(display, 0xAB);
+	Display_Data(display, 0x01);
 
 	/* Set display precharge */
-	Display_command(display, 0xB1);
-	Display_data(display, 0x32);
+	Display_Command(display, 0xB1);
+	Display_Data(display, 0x32);
 
 	/* Set display VCOMH */
-	Display_command(display, 0xBE);
-	Display_data(display, 0x05);
+	Display_Command(display, 0xBE);
+	Display_Data(display, 0x05);
 
 	/* Set display normal state (not inverted) */
-	Display_command(display, 0xA6);
+	Display_Command(display, 0xA6);
 
 	/* Set display contrast */
-	Display_command(display, 0xC1);
-	Display_data(display, 0xC8);
-	Display_data(display, 0x80);
-	Display_data(display, 0xC8);
+	Display_Command(display, 0xC1);
+	Display_Data(display, 0xC8);
+	Display_Data(display, 0x80);
+	Display_Data(display, 0xC8);
 
 	/* Set CONTRASTMSTR */
-	Display_command(display, 0xC7);
-	Display_data(display, 0x0F);
+	Display_Command(display, 0xC7);
+	Display_Data(display, 0x0F);
 
 	/* Set display VSL */
-	Display_command(display, 0xB4);
-	Display_data(display, 0xA0);
-	Display_data(display, 0xB5);
-	Display_data(display, 0x55);
+	Display_Command(display, 0xB4);
+	Display_Data(display, 0xA0);
+	Display_Data(display, 0xB5);
+	Display_Data(display, 0x55);
 
 	/* Set display precharge2 */
-	Display_command(display, 0xB6);
-	Display_data(display, 0x01);
+	Display_Command(display, 0xB6);
+	Display_Data(display, 0x01);
 
 	/* Turn display on */
-	Display_command(display, 0xAF);
+	Display_Command(display, 0xAF);
 
-	Display_setBackColor(display, DISPLAY_DEFAULT_BACK_COLOR);	/* Default color settings */
-	Display_setDrawColor(display, DISPLAY_DEFAULT_DRAW_COLOR);
+	Display_SetBackColor(display, DISPLAY_DEFAULT_BACK_COLOR);	/* Default color settings */
+	Display_SetDrawColor(display, DISPLAY_DEFAULT_DRAW_COLOR);
 
-	Display_setDrawMode(display, DISPLAY_DEFAULT_DRAW_MODE);
+	Display_SetDrawMode(display, DISPLAY_DEFAULT_DRAW_MODE);
 
-	Display_clear(display);	/* Clear display RAM */
+	Display_Clear(display);	/* Clear display RAM */
 }
 
 
@@ -154,15 +163,15 @@ void Display_init( struct SSD1351GL * display )
  * 
  *	@retval none
  */
-void Display_command( struct SSD1351GL * display, uint8_t command )
+void Display_Command( struct SSD1351GL * display, uint8_t command )
 {
-	GPIO_setPin(display->dcPinPort, display->dcPin, 0);	/* Set command-mode (DC = 0) */
+	GPIO_SetPin(display->dcPinPort, display->dcPin, 0);	/* Set command-mode (DC = 0) */
 
-	GPIO_setPin(display->csPinPort, display->csPin, 0);	/* Select display (CS = 0) */
+	GPIO_SetPin(display->csPinPort, display->csPin, 0);	/* Select display (CS = 0) */
 
 #if defined(DISPLAY_USE_HW_4SPI)
 
-	SPI_sendByte(display->spi, command );	/* Send command byte */
+	SPI_TransmitByte(display->spi, command );	/* Send command byte */
 
 #elif defined(DISPLAY_USE_SW_SPI)
 
@@ -170,7 +179,7 @@ void Display_command( struct SSD1351GL * display, uint8_t command )
 
 #endif
 
-	GPIO_setPin(display->csPinPort, display->csPin, 1);	/* Unselect display */
+	GPIO_SetPin(display->csPinPort, display->csPin, 1);	/* Unselect display */
 }
 
 
@@ -182,22 +191,22 @@ void Display_command( struct SSD1351GL * display, uint8_t command )
  * 
  *	@retval none
  */
-void Display_data( struct SSD1351GL * display, uint8_t data )
+void Display_Data( struct SSD1351GL * display, uint8_t data )
 {
-	GPIO_setPin(display->dcPinPort, display->dcPin, 1);	/* Set data-mode  (DC = 1) */
+	GPIO_SetPin(display->dcPinPort, display->dcPin, 1);	/* Set data-mode  (DC = 1) */
 
-	GPIO_setPin(display->csPinPort, display->csPin, 0);	/* Select display (CS = 0) */
+	GPIO_SetPin(display->csPinPort, display->csPin, 0);	/* Select display (CS = 0) */
 
 #if defined(DISPLAY_USE_HW_4SPI)
 
-	SPI_sendByte(display->spi, data);	/* Send data byte */
+	SPI_TransmitByte(display->spi, data);	/* Send data byte */
 
 #elif defined(DISPLAY_USE_SW_SPI)
 
 	swSpiWrite(display, data);
 #endif
 
-	GPIO_setPin(display->csPinPort, display->csPin, 1);	/* Unselect display */
+	GPIO_SetPin(display->csPinPort, display->csPin, 1);	/* Unselect display */
 }
 
 
@@ -213,7 +222,7 @@ void Display_data( struct SSD1351GL * display, uint8_t data )
  * 
  *	@retval none
  */
-void Display_setDrawZone( struct SSD1351GL * display, uint8_t x0, uint8_t y0, uint8_t width, uint8_t height )
+void Display_SetDrawZone( struct SSD1351GL * display, uint8_t x0, uint8_t y0, uint8_t width, uint8_t height )
 {
 	uint16_t x1, y1;
 
@@ -224,15 +233,15 @@ void Display_setDrawZone( struct SSD1351GL * display, uint8_t x0, uint8_t y0, ui
 
 	if(x1 > DISPLAY_WIDTH || y1 > DISPLAY_HEIGHT) return;
 
-	Display_command(display, 0x15); /* set column */
-	Display_data(display, x0);
-	Display_data(display, x1);
+	Display_Command(display, 0x15); /* set column */
+	Display_Data(display, x0);
+	Display_Data(display, x1);
 
-	Display_command(display, 0x75); /* set row*/
-	Display_data(display, y0);
-	Display_data(display, y1);
+	Display_Command(display, 0x75); /* set row*/
+	Display_Data(display, y0);
+	Display_Data(display, y1);
 
-	Display_command(display, 0x5C); /* enable display RAM output */
+	Display_Command(display, 0x5C); /* enable display RAM output */
 }
 
 
@@ -246,19 +255,19 @@ void Display_setDrawZone( struct SSD1351GL * display, uint8_t x0, uint8_t y0, ui
  * 
  *	@retval none
  */
-void Display_clear(struct SSD1351GL *display)
+void Display_Clear(struct SSD1351GL *display)
 {
 	uint16_t i;
 
 	uint8_t color8a = (display->currentBackColor >> 8);		/* Get last byte of color code */
 	uint8_t color8b	= (display->currentBackColor & 0xff);	/* Get first byte of color code */
 
-	Display_setDrawZone(display, 0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+	Display_SetDrawZone(display, 0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
 	for(i = 0; i < DISPLAY_RAM_SIZE; i++)
 	{
-		Display_data(display, color8a);		/* Send first byte of color code */
-		Display_data(display, color8b);		/* Send last byte of color code */
+		Display_Data(display, color8a);		/* Send first byte of color code */
+		Display_Data(display, color8b);		/* Send last byte of color code */
 	}
 }
 
@@ -271,19 +280,19 @@ void Display_clear(struct SSD1351GL *display)
  * 
  *	@retval none
  */
-void Display_fill( struct SSD1351GL * display, uint16_t color )
+void Display_Fill( struct SSD1351GL * display, uint16_t color )
 {
 	uint16_t i;
 
 	uint8_t color8a = (display->currentBackColor >> 8);		/* Get last byte of color code */
 	uint8_t color8b = (display->currentBackColor & 0xff);	/* Get first byte of color code */
 
-	Display_setDrawZone(display, 0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+	Display_SetDrawZone(display, 0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
 	for(i = 0; i < DISPLAY_RAM_SIZE; i++)
 	{
-		Display_data(display, color >> 8);
-		Display_data(display, color & 0xFF);
+		Display_Data(display, color >> 8);
+		Display_Data(display, color & 0xFF);
 	}
 }
 
@@ -296,7 +305,7 @@ void Display_fill( struct SSD1351GL * display, uint16_t color )
  * 
  *	@retval none
  */
-void Display_setDrawColor(struct SSD1351GL *display, uint16_t color)
+void Display_SetDrawColor(struct SSD1351GL *display, uint16_t color)
 {
 	display->currentDrawColor = color;
 }
@@ -310,7 +319,7 @@ void Display_setDrawColor(struct SSD1351GL *display, uint16_t color)
  * 
  *	@retval none
  */
-void Display_setBackColor(struct SSD1351GL *display, uint16_t color)
+void Display_SetBackColor(struct SSD1351GL *display, uint16_t color)
 {
 	display->currentBackColor = color;
 }
@@ -325,7 +334,7 @@ void Display_setBackColor(struct SSD1351GL *display, uint16_t color)
  * 
  *	@retval	none
  */
-void Display_setDrawMode(struct SSD1351GL *display, uint8_t mode)
+void Display_SetDrawMode(struct SSD1351GL *display, uint8_t mode)
 {
 	display->drawMode = mode;
 }
@@ -341,14 +350,14 @@ void Display_setDrawMode(struct SSD1351GL *display, uint8_t mode)
  * 
  *	@retval none
  */
-void Display_drawPixel(struct SSD1351GL *display, uint8_t x, uint8_t y, uint16_t color)
+void Display_DrawPixel(struct SSD1351GL *display, uint8_t x, uint8_t y, uint16_t color)
 {
 	if(x > DISPLAY_WIDTH - 1 || y > DISPLAY_HEIGHT - 1) return;
 
-	Display_setDrawZone(display, x, y, 1, 1);
+	Display_SetDrawZone(display, x, y, 1, 1);
 
-	Display_data(display, color >> 8);
-	Display_data(display, color & 0x00FF );
+	Display_Data(display, color >> 8);
+	Display_Data(display, color & 0x00FF );
 }
 
 
@@ -362,7 +371,7 @@ void Display_drawPixel(struct SSD1351GL *display, uint8_t x, uint8_t y, uint16_t
  * 
  *	@retval none
  */
-void Display_drawAsciiChar(struct SSD1351GL *display, uint8_t x, uint8_t y, uint8_t asciiChr)
+void Display_DrawAsciiChar(struct SSD1351GL *display, uint8_t x, uint8_t y, uint8_t asciiChr)
 {
 	uint8_t i, j;
 
@@ -387,11 +396,11 @@ void Display_drawAsciiChar(struct SSD1351GL *display, uint8_t x, uint8_t y, uint
 		{
 			if(font_5x8[asciiChr * 5 + i] & (1 << j))
 			{
-				Display_drawPixel(display, x + i, y + j, display->currentDrawColor);
+				Display_DrawPixel(display, x + i, y + j, display->currentDrawColor);
 			}
 			else if(!(font_5x8[asciiChr * 5 + i] & (1 << j)) && display->drawMode == DISPLAY_DRAW_MODE_OVERRIDE)
 			{
-				Display_drawPixel(display, x + i, y + j, display->currentBackColor);
+				Display_DrawPixel(display, x + i, y + j, display->currentBackColor);
 			}
 		}
 	}
@@ -410,7 +419,7 @@ void Display_drawAsciiChar(struct SSD1351GL *display, uint8_t x, uint8_t y, uint
  * 
  *  @retval	none
  */
-void Display_setCursor(struct SSD1351GL *display, uint8_t x, uint8_t y)
+void Display_SetCursor(struct SSD1351GL *display, uint8_t x, uint8_t y)
 {
 	if(x > DISPLAY_WIDTH || y > DISPLAY_HEIGHT) return;
 
@@ -430,7 +439,7 @@ void Display_setCursor(struct SSD1351GL *display, uint8_t x, uint8_t y)
  * 
  *	@retval none
  */
-void Display_printString(struct SSD1351GL *display, char str[])
+void Display_PrintString(struct SSD1351GL *display, char str[])
 {
 	uint8_t i = 0;
 
@@ -438,7 +447,7 @@ void Display_printString(struct SSD1351GL *display, char str[])
 
 	while(str[i] != 0 && display->cursorX < DISPLAY_WIDTH)
 	{
-		Display_drawAsciiChar(display, display->cursorX, display->cursorY, str[i]);
+		Display_DrawAsciiChar(display, display->cursorX, display->cursorY, str[i]);
 		display->cursorX += DISPLAY_CURSOR_OFFSET_X;	/* Move the cursor to the right by one */
 		i++;
 	}
@@ -454,7 +463,7 @@ void Display_printString(struct SSD1351GL *display, char str[])
  * 
  *	@retval	none
  */
-void Display_printNum(struct SSD1351GL *display, int32_t num)
+void Display_PrintNum(struct SSD1351GL *display, int32_t num)
 {
 	uint8_t numLength = 0;
 	int32_t numBuff;
@@ -462,14 +471,14 @@ void Display_printNum(struct SSD1351GL *display, int32_t num)
 
 	if(num == 0)	/* Print zero and exit the function if the number is 0 */
 	{
-		Display_drawAsciiChar(display, display->cursorX, display->cursorY, '0');
+		Display_DrawAsciiChar(display, display->cursorX, display->cursorY, '0');
 		display->cursorX += DISPLAY_CURSOR_OFFSET_X;
 		return;
 	}
 
 	if(num < 0)	/* Print a minus sign at the beginning of the line if the number is less than zero */
 	{
-		Display_drawAsciiChar(display, display->cursorX, display->cursorY, '-');
+		Display_DrawAsciiChar(display, display->cursorX, display->cursorY, '-');
 		display->cursorX += DISPLAY_CURSOR_OFFSET_X;
 
 		num = num * -1;
@@ -489,7 +498,7 @@ void Display_printNum(struct SSD1351GL *display, int32_t num)
 		numChar = numBuff + '0';
 		num -= numBuff * powl(10, numLength);
 
-		Display_drawAsciiChar(display, display->cursorX, display->cursorY, numChar);
+		Display_DrawAsciiChar(display, display->cursorX, display->cursorY, numChar);
 
 		display->cursorX += DISPLAY_CURSOR_OFFSET_X;	/* Move the cursor to the right by one */
 	}
@@ -505,7 +514,7 @@ void Display_printNum(struct SSD1351GL *display, int32_t num)
  * 
  *	@retval	none
  */
-void Display_printf(struct SSD1351GL *display, const char *format, ...)
+void Display_Printf(struct SSD1351GL *display, const char *format, ...)
 {
 	//TODO
 }
@@ -528,34 +537,34 @@ void Display_printf(struct SSD1351GL *display, const char *format, ...)
  *	
  *	@retval	none
  */
-void Display_drawFrame(struct SSD1351GL *display, uint8_t x, uint8_t y, uint8_t width, uint8_t height)
+void Display_DrawFrame(struct SSD1351GL *display, uint8_t x, uint8_t y, uint8_t width, uint8_t height)
 {
 	uint8_t i, j;
 
 	for(i = 0; i < height; i++)
 	{
-		Display_drawPixel(display, x, y + i, display->currentDrawColor);
+		Display_DrawPixel(display, x, y + i, display->currentDrawColor);
 	}
 
 	for(i = 1; i < width - 1; i++)
 	{
-		Display_drawPixel(display, x + i, y, display->currentDrawColor);
+		Display_DrawPixel(display, x + i, y, display->currentDrawColor);
 
 		if(display->drawMode == DISPLAY_DRAW_MODE_OVERRIDE)
 		{
 			for(j = 1; j < height; j++)
 			{
-				Display_drawPixel(display, x + i, y + j, display->currentBackColor);
+				Display_DrawPixel(display, x + i, y + j, display->currentBackColor);
 			}
 		}
 
-		Display_drawPixel(display, x + i, y + height - 1, display->currentDrawColor);
+		Display_DrawPixel(display, x + i, y + height - 1, display->currentDrawColor);
 
 	}
 
 	for(i = 0; i < height; i++)
 	{
-		Display_drawPixel(display, x + width - 1, y + i, display->currentDrawColor);
+		Display_DrawPixel(display, x + width - 1, y + i, display->currentDrawColor);
 	}
 }
 
@@ -574,7 +583,7 @@ void Display_drawFrame(struct SSD1351GL *display, uint8_t x, uint8_t y, uint8_t 
  * 
  *	@retval none
  */
-void Display_drawBox(struct SSD1351GL *display, uint8_t x, uint8_t y, uint8_t width, uint8_t height)
+void Display_DrawBox(struct SSD1351GL *display, uint8_t x, uint8_t y, uint8_t width, uint8_t height)
 {
 	uint8_t i, j;
 
@@ -584,7 +593,7 @@ void Display_drawBox(struct SSD1351GL *display, uint8_t x, uint8_t y, uint8_t wi
 	{
 		for(j = 0; j < height; j++)
 		{
-			Display_drawPixel(display, x + i, y + j, display->currentDrawColor);
+			Display_DrawPixel(display, x + i, y + j, display->currentDrawColor);
 		}
 	}
 }
@@ -605,7 +614,7 @@ void Display_drawBox(struct SSD1351GL *display, uint8_t x, uint8_t y, uint8_t wi
  * 
  *	@retval none
  */
-void Display_drawXBM(struct SSD1351GL *display, uint8_t xbmStartx, uint8_t xbmStarty, uint8_t xbmWidth, uint8_t xbmHeight, uint8_t xbm[])
+void Display_DrawXBM(struct SSD1351GL *display, uint8_t xbmStartx, uint8_t xbmStarty, uint8_t xbmWidth, uint8_t xbmHeight, uint8_t xbm[])
 {
 	uint8_t xbmArrayLength;
 	uint8_t i;
@@ -624,7 +633,7 @@ void Display_drawXBM(struct SSD1351GL *display, uint8_t xbmStartx, uint8_t xbmSt
 
 			if(xbm[(j / 8) + (i * xbmArrayLength)] & (1 << k))
 			{
-				Display_drawPixel(display, xbmStartx + j, xbmStarty + i, display->currentDrawColor);
+				Display_DrawPixel(display, xbmStartx + j, xbmStarty + i, display->currentDrawColor);
 			}
 
 			k++;
