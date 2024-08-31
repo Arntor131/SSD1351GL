@@ -21,6 +21,8 @@ extern "C" {
 #include "stdarg.h"		/* include C standard lib */
 #include "stdlib.h"
 
+#define DISPLAY_HAS_BUFFER 1
+#define FRAME_BUFFER_SIZE 128 * 128 * 2
 
 #define COLOR_BLACK		(uint16_t)0x0000	/* Most used RGB colors */
 #define COLOR_RED		(uint16_t)0xF800
@@ -35,7 +37,7 @@ extern "C" {
 /*
  * @brief Struct that contains information about display
  */
-struct SSD1351GL
+struct SSD1351
 {
 	uint8_t csPin; 		/* Chip Select pin. Set low to communicate with display. Not used in I2C mode*/
 	uint8_t dcPin; 		/* Data/Command select pin. Set low to write command, high to write data*/
@@ -57,6 +59,12 @@ struct SSD1351GL
 
 #endif	/* DISPLAY_USE_HW_4SPI */
 
+#if DISPLAY_HAS_BUFFER
+
+	uint8_t frameBuffer[DISPLAY_WIDTH * DISPLAY_HEIGHT * 2]; /* Buffer that contains display frame */
+
+#endif /* DISPLAY_HAS_BUFFFER */
+
 	uint16_t currentDrawColor;
 	uint16_t currentBackColor;
 
@@ -67,31 +75,37 @@ struct SSD1351GL
 
 };
 
-void Display_Init(struct SSD1351GL *display);
+void Display_Init(struct SSD1351 *display);
 
-void Display_Clear(struct SSD1351GL *display);
+void Display_Clear(struct SSD1351 *display);
 
-void Display_SetDrawColor(struct SSD1351GL *display, uint16_t color);
-void Display_SetBackColor(struct SSD1351GL *display, uint16_t color);
-void Display_SetDrawMode(struct SSD1351GL *display, uint8_t mode);
+#if DISPLAY_HAS_BUFFER
+void Display_Upd(struct SSD1351 *display);
+#endif
 
-void Display_DrawPixel(struct SSD1351GL *display, uint8_t x, uint8_t y, uint16_t color);
-void Display_ClearPixel(struct SSD1351GL *display, uint8_t x, uint8_t y);
-void Display_Fill( struct SSD1351GL * display, uint16_t color );
-void Display_Invert(struct SSD1351GL *display);
+void Display_SetDrawColor(struct SSD1351 *display, uint16_t color);
+void Display_SetBackColor(struct SSD1351 *display, uint16_t color);
+void Display_SetDrawMode(struct SSD1351 *display, uint8_t mode);
 
-void Display_DrawAsciiChar(struct SSD1351GL *display, uint8_t str, uint8_t col, uint8_t asciiChr);
-void Display_PrintNum(struct SSD1351GL *display, int32_t num);
-void Display_SetCursor(struct SSD1351GL *display, uint8_t str, uint8_t col);
-void Display_Home(struct SSD1351GL *display);
-void Display_PrintString(struct SSD1351GL *display, char str[]);
+void Display_DrawPixel(struct SSD1351 *display, uint8_t x, uint8_t y, uint16_t color);
+void Display_ClearPixel(struct SSD1351 *display, uint8_t x, uint8_t y);
+void Display_DrawLine(struct SSD1351 *display, uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1);
+void Display_Fill( struct SSD1351 * display, uint16_t color );
+void Display_Invert(struct SSD1351 *display);
 
-void Display_DrawFrame(struct SSD1351GL *display, uint8_t x, uint8_t y, uint8_t width, uint8_t height);
-void Display_DrawBox(struct SSD1351GL *display, uint8_t x, uint8_t y, uint8_t width, uint8_t height);
+void Display_DrawAsciiChar(struct SSD1351 *display, uint8_t str, uint8_t col, uint8_t asciiChr);
+void Display_PrintNum(struct SSD1351 *display, int32_t num);
+void Display_SetCursor(struct SSD1351 *display, uint8_t str, uint8_t col);
+void Display_Home(struct SSD1351 *display);
+void Display_PrintString(struct SSD1351 *display, char str[]);
 
-void Display_DrawXBM(struct SSD1351GL *display, uint8_t xbmStartx, uint8_t xbmStarty, uint8_t xbmWidth, uint8_t xbmHeight, uint8_t xbm[]);
+void Display_DrawFrame(struct SSD1351 *display, uint8_t x, uint8_t y, uint8_t width, uint8_t height);
+void Display_DrawBox(struct SSD1351 *display, uint8_t x, uint8_t y, uint8_t width, uint8_t height);
 
-void Display_Printf(struct SSD1351GL *display, const char *format, ...); //todo
+void Display_DrawXBM(struct SSD1351 *display, uint8_t xbmStartx, uint8_t xbmStarty, uint8_t xbmWidth, uint8_t xbmHeight, uint8_t xbm[]);
+void Display_DrawIMG(struct SSD1351 *display, uint8_t imgStartx, uint8_t imgStarty, uint8_t imgW, uint8_t imgH, uint8_t img[]);
+
+void Display_Printf(struct SSD1351 *display, const char *format, ...); //todo
 
 #if defined(__cplusplus)
 }
